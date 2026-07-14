@@ -172,7 +172,8 @@ input:focus, select:focus, textarea:focus {
 }
 .status.pending   { background: var(--warning-bg); color: var(--warning-500); }
 .status.confirmed,
-.status.processing{ background: var(--info-bg); color: var(--info-500); }
+.status.processing,
+.status.shipped { background: var(--info-bg); color: var(--info-500); }
 .status.delivered,
 .status.completed { background: var(--success-bg); color: var(--success-500); }
 .status.cancelled,

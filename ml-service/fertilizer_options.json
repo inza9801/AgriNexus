@@ -1,0 +1,42 @@
+{
+  "crops": [
+    "Adzuki Beans",
+    "Black gram",
+    "Chickpea",
+    "Coconut",
+    "Coffee",
+    "Cotton",
+    "Ground Nut",
+    "Jute",
+    "Kidney Beans",
+    "Lentil",
+    "Moth Beans",
+    "Mung Bean",
+    "Peas",
+    "Pigeon Peas",
+    "Rubber",
+    "Sugarcane",
+    "Tea",
+    "Tobacco",
+    "apple",
+    "banana",
+    "grapes",
+    "maize",
+    "mango",
+    "millet",
+    "muskmelon",
+    "orange",
+    "papaya",
+    "pomegranate",
+    "rice",
+    "watermelon",
+    "wheat"
+  ],
+  "soils": [
+    "Acidic Soil",
+    "Alkaline Soil",
+    "Loamy Soil",
+    "Neutral Soil",
+    "Peaty Soil"
+  ]
+}
