@@ -86,7 +86,7 @@ export const assignOrderToDriver = async (order_id, driver_id) => {
   }
 };
 
-export const getAllTodayShipments = async () => {
+export const getAllShipments = async () => {
   const [rows] = await pool.query(
     `SELECT d.delivery_id, o.order_unique_id, wb.crop_name, o.quantity_tons,
             f.location AS pickup_location, bu.address AS drop_location, d.status,
@@ -99,7 +99,7 @@ export const getAllTodayShipments = async () => {
      JOIN users bu ON o.buyer_id = bu.user_id
      JOIN drivers dr ON d.driver_id = dr.driver_id
      JOIN users du ON dr.user_id = du.user_id
-     WHERE DATE(d.assigned_at) = CURDATE()
+     WHERE d.status != 'Delivered'
      ORDER BY d.assigned_at DESC`
   );
   return rows;

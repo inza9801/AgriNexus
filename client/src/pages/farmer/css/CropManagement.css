@@ -652,3 +652,148 @@
     cursor:not-allowed;
 
 }
+
+/* Extends CropManagement.css with styles for the new Farm / Field / Crop
+   setup sections. Import alongside the existing CropManagement.css — does
+   not modify or duplicate any of its rules. */
+
+.setupSection {
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin: 24px 0;
+}
+
+.setupNote {
+  color: #616161;
+  font-size: 0.9rem;
+  margin-bottom: 14px;
+}
+
+.setupForm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.setupForm input,
+.setupForm select {
+  flex: 1 1 180px;
+  padding: 10px 12px;
+  border: 1px solid #c8e6c9;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.setupForm input:focus,
+.setupForm select:focus {
+  border-color: #2e7d32;
+}
+
+.setupForm button {
+  padding: 10px 20px;
+  background-color: #2e7d32;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.setupForm button:hover:not(:disabled) {
+  background-color: #256428;
+}
+
+.setupForm button:disabled {
+  background-color: #a5d6a7;
+  cursor: not-allowed;
+}
+
+.cropAddForm {
+  margin: 14px 0 20px 0;
+}
+
+.farmSummaryBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  background-color: #f1f8f2;
+  border: 1px solid #c8e6c9;
+  border-radius: 10px;
+  padding: 14px 20px;
+  margin: 24px 0;
+  font-size: 0.95rem;
+  color: #1b1b1b;
+}
+
+.secondaryBtn {
+  padding: 8px 16px;
+  background-color: #ffffff;
+  color: #2e7d32;
+  border: 1px solid #2e7d32;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  white-space: nowrap;
+}
+
+.secondaryBtn:hover {
+  background-color: #2e7d32;
+  color: #fff;
+}
+
+.inlineFieldPicker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.inlineFieldPicker label {
+  font-weight: 600;
+  color: #2e7d32;
+}
+
+.inlineFieldPicker select {
+  padding: 6px 12px;
+  border: 1px solid #c8e6c9;
+  border-radius: 8px;
+}
+
+.cropTableHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.cropTableActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.fieldFilterSelect {
+  padding: 8px 14px;
+  border: 1px solid #c8e6c9;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background-color: #fff;
+  cursor: pointer;
+}
+
+.emptyRow {
+  text-align: center;
+  color: #757575;
+  padding: 24px 0;
+  font-style: italic;
+}

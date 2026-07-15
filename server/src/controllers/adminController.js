@@ -3,7 +3,7 @@ import {
   getRequestDetail,
   getAllDriversWithTodayAssignment,
   assignOrderToDriver,
-  getAllTodayShipments,
+  getAllShipments,
   getDashboardSummary,
   getDeliveryHistorySummary,
   getAssignableOrdersToday,
@@ -58,7 +58,7 @@ export const assignOrder = async (req, res, next) => {
 
 export const shipments = async (req, res, next) => {
   try {
-    const data = await getAllTodayShipments();
+    const data = await getAllShipments();
     res.json({ success: true, data });
   } catch (err) {
     next(err);

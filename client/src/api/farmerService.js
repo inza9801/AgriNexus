@@ -1,16 +1,37 @@
 import api from "./axios.js";
 
-export const getDashboardSummary = () => api.get("/crops/dashboard-summary");
-export const getCrop = () => api.get("/crops");
-export const getLatestSensorReading = () => api.get("/sensors/latest");
-export const submitSensorReading = (data) => api.post("/sensors", data);
+// Small helper: appends ?field_id= only when one is actually supplied, so
+// every call below stays backward-compatible for farmers with a single field.
+const fieldQuery = (fieldId) => (fieldId ? `?field_id=${fieldId}` : "");
+
+export const getDashboardSummary = (fieldId) =>
+  api.get(`/crops/dashboard-summary${fieldQuery(fieldId)}`);
+export const getCrop = (fieldId) => api.get(`/crops${fieldQuery(fieldId)}`);
+export const getLatestSensorReading = (fieldId) => api.get(`/sensors/latest${fieldQuery(fieldId)}`);
+export const submitSensorReading = (data, fieldId) =>
+  api.post(`/sensors${fieldQuery(fieldId)}`, data);
 export const getWeather = (lat, lon) => api.get(`/weather?lat=${lat}&lon=${lon}`);
-export const getSensorHistory = () => api.get("/sensors/history");
+export const getSensorHistory = (fieldId) => api.get(`/sensors/history${fieldQuery(fieldId)}`);
 
 // ML (fertilizer + irrigation recommendations)
 export const getFertilizerOptions = () => api.get("/ml/fertilizer-options");
-export const predictFertilizer = (data) => api.post("/ml/predict-fertilizer", data);
-export const predictIrrigation = (data) => api.post("/ml/predict-irrigation", data);
+export const predictFertilizer = (data, fieldId) =>
+  api.post(`/ml/predict-fertilizer${fieldQuery(fieldId)}`, data);
+export const predictIrrigation = (data, fieldId) =>
+  api.post(`/ml/predict-irrigation${fieldQuery(fieldId)}`, data);
+
+// Farms / Fields — a farmer has at most one farm; fields belong to it.
+// Field location is never sent/stored — the device's live geolocation is
+// used wherever location matters (weather), same as before.
+export const getFarms = () => api.get("/farms");
+export const createFarm = (data) => api.post("/farms", data);
+export const getFields = () => api.get("/fields");
+export const createField = (data) => api.post("/fields", data);
+
+// Crops — getCrops(fieldId) with no fieldId returns every crop across every
+// field (field/farm name included); pass a fieldId to scope to one field.
+export const getCrops = (fieldId) => api.get(`/crops/all${fieldQuery(fieldId)}`);
+export const createCrop = (data) => api.post("/crops", data);
 
 // Disease detection — sends the image as multipart/form-data. The file is
 // only ever held in memory on the way through; nothing is saved server-side.

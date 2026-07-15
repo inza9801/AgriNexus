@@ -37,6 +37,7 @@ import {
   predictFertilizer,
   predictDisease,
 } from "../../api/farmerService";
+import FieldSelector from "../../components/common/FieldSelector";
 
 function FarmMonitoring() {
   const [latest, setLatest] = useState(null);
@@ -59,21 +60,29 @@ function FarmMonitoring() {
   const [diseaseError, setDiseaseError] = useState("");
   const fileInputRef = useRef(null);
 
+  // Only meaningful once the farmer has more than one field — see
+  // FieldSelector, which stays hidden (and this stays null) otherwise.
+  const [fieldId, setFieldId] = useState(null);
+
+  const loadSensorData = async (selectedFieldId) => {
+    try {
+      const [latestRes, historyRes, cropRes] = await Promise.all([
+        getLatestSensorReading(selectedFieldId),
+        getSensorHistory(selectedFieldId),
+        getCrop(selectedFieldId),
+      ]);
+      setLatest(latestRes.data.data);
+      setHistory(historyRes.data.data);
+      setCrop(cropRes.data.data);
+    } catch (err) {
+      setError("Failed to load sensor data");
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     (async () => {
-      try {
-        const [latestRes, historyRes, cropRes] = await Promise.all([
-          getLatestSensorReading(),
-          getSensorHistory(),
-          getCrop(),
-        ]);
-        setLatest(latestRes.data.data);
-        setHistory(historyRes.data.data);
-        setCrop(cropRes.data.data);
-      } catch (err) {
-        setError("Failed to load sensor data");
-        console.error(err);
-      }
+      await loadSensorData(null);
 
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
@@ -92,6 +101,13 @@ function FarmMonitoring() {
     })();
   }, []);
 
+  // Refetch scoped sensor/crop data whenever the farmer picks a different field.
+  useEffect(() => {
+    if (fieldId === null) return;
+    loadSensorData(fieldId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fieldId]);
+
   // AI Fertilizer Recommendation — takes all sensor data (N/P/K/ph/soil
   // type/moisture/temperature from the latest reading) plus live rainfall
   // from the weather feed, and asks the ML service for a recommendation.
@@ -101,7 +117,7 @@ function FarmMonitoring() {
       try {
         setFertLoading(true);
         setFertError("");
-        const res = await predictFertilizer({ rainfall: weather.rainfall });
+        const res = await predictFertilizer({ rainfall: weather.rainfall }, fieldId);
         setFertilizer(res.data.data);
       } catch (err) {
         setFertError("Failed to get fertilizer recommendation");
@@ -110,7 +126,7 @@ function FarmMonitoring() {
         setFertLoading(false);
       }
     })();
-  }, [latest, weather]);
+  }, [latest, weather, fieldId]);
 
   // Revoke the object URL when it changes/unmounts to avoid leaking memory.
   useEffect(() => {
@@ -242,6 +258,8 @@ function FarmMonitoring() {
         <h1>Farm Monitoring</h1>
         <p>Monitor live IoT sensor data and AI crop health analysis.</p>
       </div>
+
+      <FieldSelector onChange={setFieldId} />
 
       {error && <p style={{ color: "red" }}>{error}</p>}
 

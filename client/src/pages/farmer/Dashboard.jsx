@@ -16,6 +16,7 @@ import {
   getLatestSensorReading,
   getWeather,
 } from "../../api/farmerService";
+import FieldSelector from "../../components/common/FieldSelector";
 
 // Picks the weather icon for the current condition (sunny / overcast / rainy)
 function WeatherIcon({ condition }) {
@@ -31,18 +32,23 @@ function Dashboard() {
   const [weather, setWeather] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  // Selected field (only meaningful once the farmer has more than one
+  // field — FieldSelector renders nothing otherwise, and this stays null
+  // so every call below falls back to the farmer-wide/default behaviour).
+  const [fieldId, setFieldId] = useState(null);
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = async (selectedFieldId) => {
     try {
       const [summaryRes, cropRes, sensorRes] = await Promise.all([
-        getDashboardSummary(),
-        getCrop(),
-        getLatestSensorReading(),
+        getDashboardSummary(selectedFieldId),
+        getCrop(selectedFieldId),
+        getLatestSensorReading(selectedFieldId),
       ]);
       setSummary(summaryRes.data.data);
       setCrop(cropRes.data.data);
       setSensor(sensorRes.data.data);
     } catch (err) {
+      console.error(err);
       setError("Failed to load dashboard data");
     }
   };
@@ -56,6 +62,7 @@ function Dashboard() {
           const res = await getWeather(latitude, longitude);
           setWeather(res.data.data);
         } catch (err) {
+          console.error(err);
           setError("Failed to load weather data");
         }
       },
@@ -65,11 +72,18 @@ function Dashboard() {
 
   useEffect(() => {
     (async () => {
-      await loadDashboardData();
+      await loadDashboardData(null);
       loadWeather();
       setLoading(false);
     })();
   }, []);
+
+  // Refetch scoped data whenever the farmer picks a different field.
+  useEffect(() => {
+    if (fieldId === null) return;
+    loadDashboardData(fieldId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fieldId]);
 
   if (loading) return <div className="dashboard">Loading dashboard...</div>;
 
@@ -77,6 +91,8 @@ function Dashboard() {
     <div className="dashboard">
       <h1 className="headings">Overview Dashboard</h1>
       <p className="subtitle">Smart Agriculture Monitoring System</p>
+
+      <FieldSelector onChange={setFieldId} />
 
       {error && <p style={{ color: "red" }}>{error}</p>}
 

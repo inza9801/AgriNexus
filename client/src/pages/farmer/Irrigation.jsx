@@ -14,6 +14,7 @@ import {
   getWeather,
   predictIrrigation,
 } from "../../api/farmerService";
+import FieldSelector from "../../components/common/FieldSelector";
 
 function Irrigation() {
   const [latest, setLatest] = useState(null);
@@ -24,15 +25,23 @@ function Irrigation() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState("");
 
+  // Only meaningful once the farmer has more than one field — see
+  // FieldSelector, which stays hidden (and this stays null) otherwise.
+  const [fieldId, setFieldId] = useState(null);
+
+  const loadLatest = async (selectedFieldId) => {
+    try {
+      const res = await getLatestSensorReading(selectedFieldId);
+      setLatest(res.data.data);
+    } catch (err) {
+      setError("Failed to load sensor data");
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     (async () => {
-      try {
-        const res = await getLatestSensorReading();
-        setLatest(res.data.data);
-      } catch (err) {
-        setError("Failed to load sensor data");
-        console.error(err);
-      }
+      await loadLatest(null);
 
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
@@ -51,6 +60,13 @@ function Irrigation() {
     })();
   }, []);
 
+  // Refetch scoped sensor data whenever the farmer picks a different field.
+  useEffect(() => {
+    if (fieldId === null) return;
+    loadLatest(fieldId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fieldId]);
+
   // AI Irrigation Recommendation — takes all sensor data (soil moisture and
   // temperature from the latest reading) plus live humidity/light intensity
   // from the weather feed, and asks the ML service for a recommendation.
@@ -61,10 +77,13 @@ function Irrigation() {
       try {
         setAiLoading(true);
         setAiError("");
-        const res = await predictIrrigation({
-          humidity: weather.humidity,
-          lightIntensity: weather.lightIntensity,
-        });
+        const res = await predictIrrigation(
+          {
+            humidity: weather.humidity,
+            lightIntensity: weather.lightIntensity,
+          },
+          fieldId
+        );
         setIrrigation(res.data.data);
       } catch (err) {
         setAiError("Failed to get irrigation recommendation");
@@ -73,7 +92,7 @@ function Irrigation() {
         setAiLoading(false);
       }
     })();
-  }, [latest, weather]);
+  }, [latest, weather, fieldId]);
 
   // All sensors data
   const sensorData = [
@@ -130,6 +149,8 @@ function Irrigation() {
         <h1>Irrigation Control</h1>
         <p>Monitor live IoT sensor data and irrigation recommendation.</p>
       </div>
+
+      <FieldSelector onChange={setFieldId} />
 
       {error && <p style={{ color: "red" }}>{error}</p>}
 

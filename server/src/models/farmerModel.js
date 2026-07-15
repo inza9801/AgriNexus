@@ -16,13 +16,156 @@ export const getFieldIdForFarmer = async (farmer_id) => {
 
 export const getCropByField = async (field_id) => {
   const [rows] = await pool.query(
-    `SELECT crop_id, crop_name, planting_date, expected_harvest_date,
+    `SELECT crop_id, field_id, crop_name, planting_date, expected_harvest_date,
             growth_stage, health_status, expected_yield_tons,
             days_after_planting, progress_percentage
      FROM crops WHERE field_id = ? ORDER BY crop_id DESC LIMIT 1`,
     [field_id]
   );
   return rows[0] || null;
+};
+
+/* ---------------------------------------------------------------------- */
+/*                          Farms / Fields / Crops                        */
+/*  Added to support multiple fields (and their own crops) per farmer.    */
+/*  A farmer is still limited to exactly one farm (enforced in the        */
+/*  controller) — field coordinates are NOT stored; the device's current  */
+/*  geolocation is used live wherever field location matters (weather,    */
+/*  same as before).                                                      */
+/* ---------------------------------------------------------------------- */
+
+export const getFarmsForFarmer = async (farmer_id) => {
+  const [rows] = await pool.query(
+    `SELECT farm_id, farmer_id, farm_name, location, total_area_acres
+     FROM farms WHERE farmer_id = ? ORDER BY farm_id ASC`,
+    [farmer_id]
+  );
+  return rows;
+};
+
+export const createFarm = async ({ farmer_id, farm_name, location, total_area_acres }) => {
+  const [result] = await pool.query(
+    `INSERT INTO farms (farmer_id, farm_name, location, total_area_acres)
+     VALUES (?, ?, ?, ?)`,
+    [farmer_id, farm_name, location || null, total_area_acres || null]
+  );
+  return { farm_id: result.insertId, farmer_id, farm_name, location, total_area_acres };
+};
+
+export const getFieldsForFarmer = async (farmer_id) => {
+  const [rows] = await pool.query(
+    `SELECT fl.field_id, fl.farm_id, fl.field_name, fl.area_acres, fl.soil_type,
+            fm.farm_name
+     FROM fields fl
+     JOIN farms fm ON fl.farm_id = fm.farm_id
+     WHERE fm.farmer_id = ?
+     ORDER BY fl.field_id ASC`,
+    [farmer_id]
+  );
+  return rows;
+};
+
+// Fetches a field only if it belongs to the given farmer — used to validate
+// any ?field_id= query param supplied by the frontend before trusting it.
+export const getFieldById = async (field_id, farmer_id) => {
+  const [rows] = await pool.query(
+    `SELECT fl.field_id, fl.farm_id, fl.field_name, fl.area_acres, fl.soil_type
+     FROM fields fl
+     JOIN farms fm ON fl.farm_id = fm.farm_id
+     WHERE fl.field_id = ? AND fm.farmer_id = ?`,
+    [field_id, farmer_id]
+  );
+  return rows[0] || null;
+};
+
+export const createField = async ({ farm_id, field_name, area_acres, soil_type }) => {
+  const [result] = await pool.query(
+    `INSERT INTO fields (farm_id, field_name, area_acres, soil_type)
+     VALUES (?, ?, ?, ?)`,
+    [farm_id, field_name, area_acres || null, soil_type || null]
+  );
+  return { field_id: result.insertId, farm_id, field_name, area_acres, soil_type };
+};
+
+// All crops for one field (Crop Management table, filtered to a field).
+export const getCropsByField = async (field_id) => {
+  const [rows] = await pool.query(
+    `SELECT crop_id, field_id, crop_name, planting_date, expected_harvest_date,
+            growth_stage, health_status, expected_yield_tons,
+            days_after_planting, progress_percentage
+     FROM crops WHERE field_id = ? ORDER BY crop_id DESC`,
+    [field_id]
+  );
+  return rows;
+};
+
+// All crops across every field the farmer owns, with field/farm names
+// joined in for display (Crop Management table with no field filter).
+export const getAllCropsForFarmer = async (farmer_id) => {
+  const [rows] = await pool.query(
+    `SELECT c.crop_id, c.field_id, c.crop_name, c.planting_date, c.expected_harvest_date,
+            c.growth_stage, c.health_status, c.expected_yield_tons,
+            c.days_after_planting, c.progress_percentage,
+            fl.field_name, fl.area_acres, fl.farm_id, fm.farm_name
+     FROM crops c
+     JOIN fields fl ON c.field_id = fl.field_id
+     JOIN farms fm ON fl.farm_id = fm.farm_id
+     WHERE fm.farmer_id = ?
+     ORDER BY c.crop_id DESC`,
+    [farmer_id]
+  );
+  return rows;
+};
+
+// Used by the dashboard to aggregate across all of a farmer's crops when no
+// specific field is selected.
+export const getAllCropsSummaryForFarmer = async (farmer_id) => {
+  const [rows] = await pool.query(
+    `SELECT c.health_status, c.expected_yield_tons, c.expected_harvest_date
+     FROM crops c
+     JOIN fields fl ON c.field_id = fl.field_id
+     JOIN farms fm ON fl.farm_id = fm.farm_id
+     WHERE fm.farmer_id = ?`,
+    [farmer_id]
+  );
+  return rows;
+};
+
+export const createCrop = async ({
+  field_id,
+  crop_name,
+  planting_date,
+  expected_harvest_date,
+  growth_stage,
+  health_status,
+  expected_yield_tons,
+}) => {
+  const [result] = await pool.query(
+    `INSERT INTO crops
+      (field_id, crop_name, planting_date, expected_harvest_date, growth_stage, health_status, expected_yield_tons, days_after_planting, progress_percentage)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0)`,
+    [
+      field_id,
+      crop_name,
+      planting_date || null,
+      expected_harvest_date || null,
+      growth_stage || "Seedling",
+      health_status || "Healthy",
+      expected_yield_tons || null,
+    ]
+  );
+  return {
+    crop_id: result.insertId,
+    field_id,
+    crop_name,
+    planting_date,
+    expected_harvest_date,
+    growth_stage: growth_stage || "Seedling",
+    health_status: health_status || "Healthy",
+    expected_yield_tons,
+    days_after_planting: 0,
+    progress_percentage: 0,
+  };
 };
 
 export const getListableBatches = async (farmer_id) => {

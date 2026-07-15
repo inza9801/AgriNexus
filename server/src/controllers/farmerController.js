@@ -17,19 +17,42 @@ import {
   getBatchSummary,
   updateCrop,
   addBatch,
+  getFarmsForFarmer,
+  createFarm,
+  getFieldsForFarmer,
+  getFieldById,
+  createField,
+  getCropsByField,
+  getAllCropsForFarmer,
+  getAllCropsSummaryForFarmer,
+  createCrop,
 } from "../models/farmerModel.js";
 
 // Base URL of the Flask ML microservice (fertilizer + irrigation models).
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "http://localhost:5001";
 
-// Resolves the logged-in farmer's field_id, or throws a 404-style error
+// Resolves the logged-in farmer's field_id. If the request supplies
+// ?field_id=, that field is used (after confirming it actually belongs to
+// this farmer); otherwise falls back to the farmer's first/default field —
+// this keeps every existing single-field flow working unchanged.
 const resolveFieldId = async (req, res) => {
-  const field_id = await getFieldIdForFarmer(req.user.user_id);
-  if (!field_id) {
+  const { field_id } = req.query;
+
+  if (field_id) {
+    const field = await getFieldById(field_id, req.user.user_id);
+    if (!field) {
+      res.status(404);
+      throw new Error("Field not found for this farmer.");
+    }
+    return field.field_id;
+  }
+
+  const defaultFieldId = await getFieldIdForFarmer(req.user.user_id);
+  if (!defaultFieldId) {
     res.status(404);
     throw new Error("No field found for this farmer. Please set up your farm/field first.");
   }
-  return field_id;
+  return defaultFieldId;
 };
 
 // Maps an Open-Meteo WMO weather_code to one of three simple buckets used
@@ -70,6 +93,9 @@ export const createBatch = async (req, res, next) => {
   }
 };
 
+// Returns the latest crop for a single field. Accepts an optional
+// ?field_id= — without it, falls back to the farmer's default field, same
+// as before.
 export const getCrop = async (req, res, next) => {
   try {
     const field_id = await resolveFieldId(req, res);
@@ -84,27 +110,192 @@ export const getCrop = async (req, res, next) => {
   }
 };
 
+// Returns every crop for the farmer. With ?field_id= it's scoped to that
+// field (used by Crop Management's field dropdown); without it, every crop
+// across every field is returned, field/farm names included.
+export const getCrops = async (req, res, next) => {
+  try {
+    const { field_id } = req.query;
+
+    if (field_id) {
+      const field = await getFieldById(field_id, req.user.user_id);
+      if (!field) {
+        res.status(404);
+        throw new Error("Field not found for this farmer.");
+      }
+      const crops = await getCropsByField(field_id);
+      return res.json({ success: true, data: crops });
+    }
+
+    const crops = await getAllCropsForFarmer(req.user.user_id);
+    res.json({ success: true, data: crops });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const addCrop = async (req, res, next) => {
+  try {
+    const {
+      field_id,
+      crop_name,
+      planting_date,
+      expected_harvest_date,
+      growth_stage,
+      health_status,
+      expected_yield_tons,
+    } = req.body;
+
+    if (!field_id || !crop_name) {
+      res.status(400);
+      throw new Error("field_id and crop_name are required.");
+    }
+
+    const field = await getFieldById(field_id, req.user.user_id);
+    if (!field) {
+      res.status(404);
+      throw new Error("Field not found for this farmer.");
+    }
+
+    const crop = await createCrop({
+      field_id,
+      crop_name,
+      planting_date,
+      expected_harvest_date,
+      growth_stage,
+      health_status,
+      expected_yield_tons,
+    });
+
+    res.status(201).json({ success: true, data: crop });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // NOTE: irrigation status is no longer computed here with a hardcoded
 // moisture threshold. The Irrigation page now gets a real recommendation
 // from the ML service (see predictIrrigation below), and the Dashboard no
 // longer shows an Irrigation card at all (replaced by Rain Probability).
+//
+// With ?field_id=, the summary is scoped to that one field (unchanged
+// behaviour). Without it, crop health/yield/harvest are aggregated across
+// every field the farmer owns: health is "Healthy" only if every crop is
+// healthy, yield is summed, and harvest date is the nearest upcoming one.
 export const getDashboardSummary = async (req, res, next) => {
   try {
-    const field_id = await resolveFieldId(req, res);
-    const crop = await getCropByField(field_id);
+    const { field_id } = req.query;
     const listings = await getListingsSummary(req.user.user_id);
 
-    const cropHealth = crop && crop.health_status === "Healthy" ? "Healthy" : "Diseased";
+    let cropHealth = "N/A";
+    let estimatedYieldTons = null;
+    let expectedHarvestDate = null;
+
+    if (field_id) {
+      const resolvedFieldId = await resolveFieldId(req, res);
+      const crop = await getCropByField(resolvedFieldId);
+      cropHealth = crop && crop.health_status === "Healthy" ? "Healthy" : crop ? "Diseased" : "N/A";
+      estimatedYieldTons = crop ? crop.expected_yield_tons : null;
+      expectedHarvestDate = crop ? crop.expected_harvest_date : null;
+    } else {
+      const crops = await getAllCropsSummaryForFarmer(req.user.user_id);
+      if (crops.length) {
+        cropHealth = crops.every((c) => c.health_status === "Healthy") ? "Healthy" : "Diseased";
+        estimatedYieldTons = crops.reduce((sum, c) => sum + Number(c.expected_yield_tons || 0), 0);
+        const upcoming = crops
+          .map((c) => c.expected_harvest_date)
+          .filter(Boolean)
+          .sort((a, b) => new Date(a) - new Date(b));
+        expectedHarvestDate = upcoming[0] || null;
+      }
+    }
 
     res.json({
       success: true,
       data: {
         cropHealth,
         marketplaceListings: listings ? listings.totalListings : 0,
-        estimatedYieldTons: crop ? crop.expected_yield_tons : null,
-        expectedHarvestDate: crop ? crop.expected_harvest_date : null,
+        estimatedYieldTons,
+        expectedHarvestDate,
       },
     });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/* -------------------------------------------------------------------------- */
+/*                              Farms / Fields                                */
+/*  A farmer is limited to exactly one farm — enforced below. A farm can      */
+/*  have any number of fields, each created against that one farm. Field     */
+/*  location is never stored: it's always the device's live geolocation,     */
+/*  same as the existing weather flow.                                       */
+/* -------------------------------------------------------------------------- */
+
+export const getFarms = async (req, res, next) => {
+  try {
+    const farms = await getFarmsForFarmer(req.user.user_id);
+    res.json({ success: true, data: farms });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const addFarm = async (req, res, next) => {
+  try {
+    const existingFarms = await getFarmsForFarmer(req.user.user_id);
+    if (existingFarms.length > 0) {
+      res.status(400);
+      throw new Error("You already have a farm registered. Only one farm is supported per account.");
+    }
+
+    const { farm_name, location, total_area_acres } = req.body;
+    if (!farm_name) {
+      res.status(400);
+      throw new Error("farm_name is required.");
+    }
+
+    const farm = await createFarm({
+      farmer_id: req.user.user_id,
+      farm_name,
+      location,
+      total_area_acres,
+    });
+
+    res.status(201).json({ success: true, data: farm });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getFields = async (req, res, next) => {
+  try {
+    const fields = await getFieldsForFarmer(req.user.user_id);
+    res.json({ success: true, data: fields });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const addField = async (req, res, next) => {
+  try {
+    const farms = await getFarmsForFarmer(req.user.user_id);
+    if (!farms.length) {
+      res.status(400);
+      throw new Error("Please create a farm before adding fields.");
+    }
+
+    const { field_name, area_acres, soil_type } = req.body;
+    if (!field_name) {
+      res.status(400);
+      throw new Error("field_name is required.");
+    }
+
+    // Single-farm model: new fields always attach to the farmer's one farm.
+    const farm_id = farms[0].farm_id;
+    const field = await createField({ farm_id, field_name, area_acres, soil_type });
+
+    res.status(201).json({ success: true, data: field });
   } catch (err) {
     next(err);
   }

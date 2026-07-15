@@ -1,0 +1,30 @@
+.fieldSelector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px 0;
+}
+
+.fieldSelector label {
+  font-weight: 600;
+  color: #2e7d32;
+  font-size: 0.95rem;
+}
+
+.fieldSelector select {
+  padding: 8px 14px;
+  border: 1px solid #c8e6c9;
+  border-radius: 8px;
+  background-color: #ffffff;
+  color: #1b1b1b;
+  font-size: 0.95rem;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.fieldSelector select:hover,
+.fieldSelector select:focus {
+  border-color: #2e7d32;
+  box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.15);
+}
