@@ -236,6 +236,22 @@ tbody tr:hover{
     font-weight:600;
 
 }
+
+.cancelledStatus{
+
+    background:var(--danger-bg);
+
+    color:var(--danger-500);
+
+    padding:6px 12px;
+
+    border-radius:20px;
+
+    font-size:13px;
+
+    font-weight:600;
+
+}
 /* ===================================
    RECENT TRANSACTIONS
 =================================== */

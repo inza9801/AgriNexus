@@ -45,7 +45,9 @@ const Landing = () => {
           <span>AgriNexus</span>
         </div>
         <div className="navActions">
-          <Link to="/login" className="navLink">Login</Link>
+          <Link to="/login" className="navLink">
+            Login
+          </Link>
           <Link to="/register" className="navBtn">
             Get Started <FaArrowRight />
           </Link>
@@ -76,15 +78,21 @@ const Landing = () => {
         <div className="heroPanel" aria-hidden="true">
           <div className="heroStat">
             <span className="heroStatValue">4</span>
-            <span className="heroStatLabel">Connected roles, one workspace</span>
+            <span className="heroStatLabel">
+              Connected roles, one workspace
+            </span>
           </div>
           <div className="heroStat">
             <span className="heroStatValue">24/7</span>
-            <span className="heroStatLabel">Live shipment &amp; sensor tracking</span>
+            <span className="heroStatLabel">
+              Live shipment &amp; sensor tracking
+            </span>
           </div>
           <div className="heroStat">
             <span className="heroStatValue">1</span>
-            <span className="heroStatLabel">Login for the whole supply chain</span>
+            <span className="heroStatLabel">
+              Login for the whole supply chain
+            </span>
           </div>
         </div>
       </header>
